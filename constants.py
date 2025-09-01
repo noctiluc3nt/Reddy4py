@@ -1,0 +1,11 @@
+cpcv=1.4
+Rd=287.05
+cp=1005.7
+rho=1.225
+Lv=2264.705*1000 #temperature independent version here, for ET use temperature dependent one
+karman=0.4
+g=9.81
+Runiversal=8.31451
+M_H2O=0.01802
+M_CO2=0.044
+M_CH4=0.01604
