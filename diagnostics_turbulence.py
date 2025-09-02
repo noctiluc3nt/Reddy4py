@@ -233,12 +233,6 @@ def calc_flux_intermittency(ts1, ts2=None, nsub=6000):
         cov_subs[i] = cov_sub 
     return np.std(cov_subs,ddof=1)/cov_complete  # Return the ratio of std dev to complete covariance
 
-# Example of how to call the function
-# ts1 = np.random.rand(12000)  # Example time series 1
-# ts2 = np.random.rand(12000)  # Example time series 2 (optional)
-# result = calc_flux_intermittency(ts1, ts2, nsub=6000)
-# print(result)
-
 
 ### hydrological measures ###
 #' Bowen ratio BR
@@ -323,7 +317,8 @@ def ustar2z0(ustar):
 #'calc_coriolis(45)
 #'
 def calc_coriolis(phi):
-	return(2*np.pi*math.sin(phi*np.pi/180))
+	Omega=1/86400
+	return(2*Omega*math.sin(phi*np.pi/180))
 
 
 #' Ekman layer thickness
@@ -433,7 +428,7 @@ def calc_Km(cov_uw,du_dz):
 #'calc_Kh(0.2,-1)
 #'
 def calc_Kh(cov_wT,dT_dz):
-	return -cov_wT/dT_dz
+	return(-cov_wT/dT_dz)
 
 
 #' Calculates turbulent Prandtl number Pr = K_m/K_h
@@ -449,4 +444,4 @@ def calc_Kh(cov_wT,dT_dz):
 #'calc_Pr(0.4,0.6)
 #'
 def calc_Pr(K_m,K_h):
-	return K_m/K_h
+	return(K_m/K_h)

@@ -1,7 +1,14 @@
-def despiking(vec,threshold_low,threshold_up):
-    vec=np.where(vec<threshold_low,np.nan,vec)
-    vec=np.where(vec>threshold_up,np.nan,vec)
-    return vec
+def despiking(ts,threshold_low,threshold_up):
+    vec=np.where(ts<threshold_low,np.nan,ts)
+    vec=np.where(ts>threshold_up,np.nan,ts)
+    return ts
+
+def count_spikes(ts,threshold_low,threshold_up):
+    nr_spikes = np.sum(ts<threshold_low) + np.sum(ts>threshold_up)
+    return nr_spikes
+
+def get_amplitude_resolution(ts):
+    return len(set(ts))
 
 def smaller_than_machine_epsilon(vec):
     epsilon=np.finfo(float).eps
@@ -48,7 +55,6 @@ def WPLcorrection(Ts_mean,q_mean,cov_wTs,rhow_mean,cov_wrhow,rhoc_mean=None,cov_
     else: #other trace gas flux
         return(cov_wrhoc+1.61*rhoc_mean/rhow_mean*cov_wrhow+(1+1.61*q_mean)*rhoc_mean/Ts_mean*cov_wTs)
     
-
 def sos2Ts(sos):
 	return(sos^2/(cpcv()*Rd()))
 
