@@ -4,7 +4,7 @@
 #' Stefan-Boltzmann constant [W/m^2/K^4]
 #' @keywords internal
 def sigma():
-	return(5.67*10^(-8))
+	return(5.67*10**(-8))
 
 
 #' cp
