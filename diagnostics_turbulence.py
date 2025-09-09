@@ -53,7 +53,7 @@ def calc_vtke(u_sd,v_sd,w_sd):
 #'calc_ustar(-0.3,0.02)
 #'
 def calc_ustar(cov_uw,cov_vw=0):
-	return((cov_uw^2+cov_vw^2)**(1/4)) 
+	return((cov_uw**2+cov_vw**2)**(1/4)) 
 
 
 #' Obukhov length
@@ -280,7 +280,10 @@ def calc_ef(sh,lh):
 #'lh2et(20,273)
 #'
 def lh2et(lh,temp=None):
-	lv=Lv(temp)
+	if temp is not None:
+		lv=Lv(temp)
+	else:
+		lv=Lv()
 	return lh/lv
 
 

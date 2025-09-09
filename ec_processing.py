@@ -134,6 +134,16 @@ def molarconcentration2density(c, gas="H2O"):
     else:
         print("You selected a gas which is not available for the conversion here.")
      
+#' Conversion of density to mixing ratio
+#'
+#'@description Conversion of density to mixing ratio
+#'@param rho density [kg/m^3]
+#'
+#'@return mixing ratio of the gas [kg/kg]
+#'@export
+#'
+def density2mixingratio(rho):
+    return(rho/rhoAir())
 
 
 #' Ts2T
@@ -147,7 +157,7 @@ def molarconcentration2density(c, gas="H2O"):
 #'@export
 #'
 def Ts2T(Ts,q):
-    return Ts*(1+Rd()/Rv())*q
+    return Ts*(1+Rd()/Rv()*q)
 
 #' SND and cross-wind correction of sensible heat flux
 #'
@@ -166,7 +176,7 @@ def Ts2T(Ts,q):
 #'@return SND correction of sensible heat flux
 #'@export
 #'
-def SNDcorrection(Ts_mean,u_mean,v_mean,cov_uw,cov_vw,cov_wTs,cov_qw,A=7/8,B=7/8):
+def SNDcorrection(Ts_mean,u_mean,v_mean,cov_uw,cov_vw,cov_wTs,cov_qw=None,A=7/8,B=7/8):
     if cov_qw is not None:
         #cross-wind and SND correction
         return cov_wTs - 0.51*cov_qw + 2*Ts_mean/csound()**2*(A*u_mean*cov_uw + B*v_mean*cov_vw)
@@ -206,7 +216,7 @@ def WPLcorrection(Ts_mean,q_mean,cov_wTs,rhow_mean,cov_wrhow,rhoc_mean=None,cov_
 #'@export
 #' 
 def sos2Ts(sos):
-	return(sos^2/(cpcv()*Rd()))
+	return(sos**2/(cpcv()*Rd()))
 
 
 #' Vertical Velocity Flag
@@ -251,3 +261,50 @@ def flag_most(w_sd,ustar,zeta,thresholds_most=[0.3,0.8]):
     itc=abs((w_sd/ustar-parameterized)/parameterized)
     flag=np.where(itc<thresholds_most[0],0,np.where(itc<thresholds_most[1],1,2))
     return(flag)
+
+
+
+### fluxes (unit conversion) ###
+#' Converts cov(w,T) to sensible heat flux SH
+#'
+#'@description Converts cov(T,w) to sensible heat flux SH
+#'@param cov_wT covariance cov(w,T) [K m/s]
+#'@param rho density of air [kg/m^3] (optional)
+#'
+#'@return sensible heat flux [W/m^2]
+#'@export
+#'
+def cov2sh(cov_wT,rho=None):
+	if rho is None:
+		rho = rhoAir()
+	return(rho*cp()*cov_wT)
+
+
+#' Converts cov(w,q) to latent heat flux LH
+#'
+#'@description Converts cov(w,q) to latent heat flux LH
+#'@param cov_wq covariance cov(w,q) [m/s]
+#'@param rho density of air [kg/m^3] (optional)
+#'
+#'@return latent heat flux [W/m^2]
+#'@export
+#'
+def cov2lh(cov_wq,rho=None):
+	if (rho is None):
+		rho = rhoAir()
+	return(rho*Lv()*cov_wq)
+
+
+#' Converts cov(co2,w) to CO2 flux
+#'
+#'@description Converts cov(co2,w) to CO2 flux
+#'@param cov_co2w covariance cov(co2,w) [m/s]
+#'@param rho density of air [kg/m^3] (optional)
+#'
+#'@return CO2 flux [kg/(m^2*s)]
+#'@export
+#'
+def cov2cf(cov_co2w,rho=None):
+    if rho is None:
+        rho = rhoAir()
+    return(rho*cov_co2w)

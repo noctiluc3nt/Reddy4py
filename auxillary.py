@@ -14,8 +14,8 @@ import numpy as np
 #'
 def calc_circular_mean(x,nan_rm=True):
     x=x*np.pi/180
-    if nan_rm is True:
-        return((math.atan2(np.nansum(np.sin(x)),np.nansum(np.cos(x)))*180/np.pi)%360)
+    if nan_rm==True:
+        return((np.arctan2(np.nansum(np.sin(x)),np.nansum(np.cos(x)))*180/np.pi)%360)
     else:
-        return((math.atan2(np.sum(np.sin(x)),sum(np.cos(x)))*180/np.pi)%360)
+        return((np.arctan2(np.sum(np.sin(x)),sum(np.cos(x)))*180/np.pi)%360)
 
