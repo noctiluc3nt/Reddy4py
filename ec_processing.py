@@ -1,26 +1,89 @@
 import numpy as np
+import math
 
+#' Despiking
+#'
+#'@description Applies (up to) three despiking methods based on pre-defined thresholds
+#'@param ts timeseries that shall be despiked
+#'@param thresholds vector with two elements representing lower and upper bounds for despiking (pre-defined thresholds), \code{NA} means that the respective bound is not used
+#'
+#'@return despiked timeseries
+#'@export
+#'
+#'@importFrom pracma detrend
+#'
+#'@examples
+#'set.seed(5)
+#'ts1=rnorm(100)
+#'despiking(ts1,thresholds=c(-1,1))
+#'
+#'ts2=rexp(1000)
+#'despiking(ts2)
+#'
 def despiking(ts,threshold_low,threshold_up):
     vec=np.where(ts<threshold_low,np.nan,ts)
     vec=np.where(ts>threshold_up,np.nan,ts)
     return ts
 
+#' Count spikes
+#'
+#'@description Counts spikes in timeseries
+#'
+#'@param ts time series
+#'@param thresholds vector with lower and upper threshold, e.g. c(0,10)
+#'
+#'@return number of spikes in timeseries (i.e. values lower than lower threshold and higher than upper threshold)
+#'@export
+#'
 def count_spikes(ts,threshold_low,threshold_up):
     nr_spikes = np.sum(ts<threshold_low) + np.sum(ts>threshold_up)
     return nr_spikes
 
+#' Amplitude resolution
+#'
+#'@description Gives amplitude resolution of time series (i.e. number of different values in time series)
+#'
+#'@param ts time series
+#'
+#'@return number of different values in time series
+#'
 def get_amplitude_resolution(ts):
     return len(set(ts))
 
+#' Set everything smaller than machine epsilon to zero
+#'
+#'@description Calculates machine epsilon (machine-dependent) and sets everything smaller to exactly zero
+#'@param vec vector/time series
+#'
+#'@return vector of same length, just all values smaller than machine epsilon are set to exactly zero
+#'@export
+#'
+#'@examples
+#'ts=c(1,0.1,1e-15,1e-16,1e-17,1e-18,1e-19)
+#'ts=smaller_than_machine_epsilon(ts)
+#'
 def smaller_than_machine_epsilon(vec):
     epsilon=np.finfo(float).eps
     #2.22044604925e-16
     vec=np.where(vec<epsilon,0,vec)
     return vec
 
+#' Double rotation
+#'
+#'@description Double rotation (i.e., sonic coordinate system will be aligned with streamlines)
+#'@param u u-wind (levelled sonic)
+#'@param v v-wind (levelled sonic)
+#'@param w w-wind (levelled sonic)
+#'
+#'@return list containing the wind in a natural coordinate system (streamwise, crosswise, vertical) and the two rotation angles theta and phi
+#'@export
+#'
+#'@examples
+#'wind_rotated=rotate_double(4,3,1) #double rotation can be applied instantenously
+#'
 def rotate_double(u,v,w):
     #horizontal
-    theta=math.atan2(np.mean(v),np.mean(u))
+    theta=math.atan2(np.nanmean(v),np.nanmean(u))
     u1=u*np.cos(theta) + v*np.sin(theta)
     v1=-u*np.sin(theta) + v*np.cos(theta)
     w1=w
@@ -31,6 +94,18 @@ def rotate_double(u,v,w):
     w2=-u1*np.sin(phi)+w1*np.cos(phi)
     return u2, smaller_than_machine_epsilon(v2), smaller_than_machine_epsilon(w2), (theta*180/np.pi+360)%360, (phi*180/np.pi+360)%360
 
+#' Unit conversion of "parts-per" to density (for closed-path gas analyzer)
+#'
+#'@description Unit conversion of "parts-per" to density (for closed-path gas analyzer)
+#'@param ppt measurement in parts per thousand [ppt]
+#'@param T_mean temperature [K]
+#'@param pres pressure [Pa]
+#'@param e water vapor pressure [Pa]
+#'@param gas which gas? can be either \code{H2O}, \code{CO2}, \code{CH4} (if \code{CO2}/\code{CH4} is selected, make sure that it's still in ppt and not ppm as usual)
+#'
+#'@return density of the gas [kg/m^3]
+#'@export
+#'
 def ppt2rho(ppt,T_mean=288.15, pres = 101325, e = 0, gas="H2O"):
     Vd=Runiversal()*T_mean/(pres-e) #volume of dry air [m^3/mol]
     if gas == "H2O":
@@ -40,23 +115,96 @@ def ppt2rho(ppt,T_mean=288.15, pres = 101325, e = 0, gas="H2O"):
     elif gas == "CH4":
         return ppt/1000*M_CH4()/Vd
 
+#' Conversion of molar concentration to density
+#'
+#'@description Conversion of molar concentration to density
+#'@param c molar concentration in mol/m^3
+#'@param gas which gas? can be either \code{H2O}, \code{CO2}, \code{CH4}
+#'
+#'@return density of the gas [kg/m^3]
+#'@export
+#'
+def molarconcentration2density(c, gas="H2O"):
+    if gas == "H2O":
+        return(c*M_H2O())
+    elif gas == "CO2":
+        return(c*M_CO2())
+    elif gas == "CH4":
+        return(c*M_CH4())
+    else:
+        print("You selected a gas which is not available for the conversion here.")
+     
+
+
+#' Ts2T
+#'
+#'@description Converts sonic temperature Ts to temperature T
+#'
+#'@param Ts sonic temperature [K] (similar as virtual temperature)
+#'@param q specific humidity [kg/kg]
+#'
+#'@return temperature [K]
+#'@export
+#'
 def Ts2T(Ts,q):
     return Ts*(1+Rd()/Rv())*q
 
+#' SND and cross-wind correction of sensible heat flux
+#'
+#'@description SND and cross-wind correction of sensible heat flux: converts the buoyancy flux cov(w,Ts) (based on sonic temperature Ts) to sensible heat flux
+#'@param Ts_mean sonic temperature [K] (averaged)
+#'@param u_mean u-wind [m/s] (averaged)
+#'@param v_mean v-wind [m/s] (averaged)
+#'@param cov_uw cov(u,w) [m^2/s^2]
+#'@param cov_vw cov(v,w) [m^2/s^2]
+#'@param cov_wTs cov(Ts,w) [K*m/s] (buoyancy flux)
+#'@param cov_qw cov(q,w) [kg/kg*m/s] (optional)
+#'@param A constant used in cross-wind correction, default \code{A = 7/8} for CSAT3
+#'@param B constant used in cross-wind correction, default \code{B = 7/8} for CSAT3
+#'@param sos speed of sound [m/s], default \code{sos = csound()} corresponding to 343 m/s
+#'
+#'@return SND correction of sensible heat flux
+#'@export
+#'
 def SNDcorrection(Ts_mean,u_mean,v_mean,cov_uw,cov_vw,cov_wTs,cov_qw,A=7/8,B=7/8):
     if cov_qw is not None:
         #cross-wind and SND correction
-        cov_wTs - 0.51*cov_qw + 2*Ts_mean/csound()**2*(A*u_mean*cov_uw + B*v_mean*cov_vw)
+        return cov_wTs - 0.51*cov_qw + 2*Ts_mean/csound()**2*(A*u_mean*cov_uw + B*v_mean*cov_vw)
     else:
         #only cross-wind correction
         return cov_wTs + 2*Ts_mean/csound()**2*(A*u_mean*cov_uw + B*v_mean*cov_vw)
-    
+
+
+#' WPL correction
+#'
+#'@description WPL correction: density correction for trace gas fluxes (i.e., converts volume- to mass-related quantity)
+#'@param Ts_mean temperature [K] (sonic temperature or corrected temperature)
+#'@param q_mean specific humidity [kg/kg] (if measured, default \code{NULL})
+#'@param cov_wTs covariance cov(w,Ts) [m/s*K]
+#'@param rhow_mean measured water vapor density [kg/m^3]
+#'@param cov_wrhow covariance cov (w,rhow) [m/s*kg/m^3]
+#'@param rhoc_mean measured trace gas density [kg/m^3] (only if WPL-correction should be applied to another flux, e.g. CO2 flux, default \code{NULL})
+#'@param cov_wrhoc covariance cov (w,rhoc) [m/s*kg/m^3] (only if WPL-correction should be applied to another flux, e.g. CO2 flux, default \code{NULL})
+#'
+#'@return WPL correction of respective flux
+#'@export
+#'
 def WPLcorrection(Ts_mean,q_mean,cov_wTs,rhow_mean,cov_wrhow,rhoc_mean=None,cov_wrhoc=None):
-    if rho_c is None: #water vapor flux
+    if rhoc_mean is None: #water vapor flux
         return((1+1.61*q_mean)*(cov_wrhow+rhow_mean/Ts_mean*cov_wTs)) #with M_L/M_w = 1.61
     else: #other trace gas flux
         return(cov_wrhoc+1.61*rhoc_mean/rhow_mean*cov_wrhow+(1+1.61*q_mean)*rhoc_mean/Ts_mean*cov_wTs)
-    
+
+
+### speed of sound to sonic temperature ###
+#' Converts speed of sound (sos) to sonic temperature
+#'
+#'@description Converts speed of sound (sos) to sonic temperature
+#'@param sos speed of sound [m/s]
+#'
+#'@return sonic temperature (virtual temperature) [K]
+#'@export
+#' 
 def sos2Ts(sos):
 	return(sos^2/(cpcv()*Rd()))
 
