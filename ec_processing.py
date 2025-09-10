@@ -1,5 +1,22 @@
 import numpy as np
+import pandas as pd
 import math
+
+import os
+os.chdir("/home/lauramack/clickhouse-db-data-processing/Reddy4py")
+
+from auxillary import *
+from constants import *
+from diagnostics_meteorology import *
+from diagnostics_turbulence import *
+
+
+#os.chdir("./Reddy4py/")
+#from auxillary import *
+#from constants import *
+#from diagnostics_meteorology import *
+#from diagnostics_turbulence import *
+#from ec_processing import *
 
 #' Despiking
 #'
@@ -94,7 +111,7 @@ def rotate_double(u,v,w):
     w2=-u1*np.sin(phi)+w1*np.cos(phi)
     return u2, smaller_than_machine_epsilon(v2), smaller_than_machine_epsilon(w2), (theta*180/np.pi+360)%360, (phi*180/np.pi+360)%360
 
-#' Unit conversion of "parts-per" to density (for closed-path gas analyzer)
+#' Unit conversion of "parts-per" (molar mixing ratio) to density (for closed-path gas analyzer)
 #'
 #'@description Unit conversion of "parts-per" to density (for closed-path gas analyzer)
 #'@param ppt measurement in parts per thousand [ppt]
@@ -185,25 +202,35 @@ def SNDcorrection(Ts_mean,u_mean,v_mean,cov_uw,cov_vw,cov_wTs,cov_qw=None,A=7/8,
         return cov_wTs + 2*Ts_mean/csound()**2*(A*u_mean*cov_uw + B*v_mean*cov_vw)
 
 
-#' WPL correction
+#' WPL correction for water vapor flux
 #'
 #'@description WPL correction: density correction for trace gas fluxes (i.e., converts volume- to mass-related quantity)
 #'@param Ts_mean temperature [K] (sonic temperature or corrected temperature)
-#'@param q_mean specific humidity [kg/kg] (if measured, default \code{NULL})
 #'@param cov_wTs covariance cov(w,Ts) [m/s*K]
-#'@param rhow_mean measured water vapor density [kg/m^3]
-#'@param cov_wrhow covariance cov (w,rhow) [m/s*kg/m^3]
-#'@param rhoc_mean measured trace gas density [kg/m^3] (only if WPL-correction should be applied to another flux, e.g. CO2 flux, default \code{NULL})
-#'@param cov_wrhoc covariance cov (w,rhoc) [m/s*kg/m^3] (only if WPL-correction should be applied to another flux, e.g. CO2 flux, default \code{NULL})
+#'@param rhoq_mean measured water vapor density [kg/m^3]
+#'@param cov_rhoqw covariance cov (w,rhow) [m/s*kg/m^3]
 #'
 #'@return WPL correction of respective flux
 #'@export
 #'
-def WPLcorrection(Ts_mean,q_mean,cov_wTs,rhow_mean,cov_wrhow,rhoc_mean=None,cov_wrhoc=None):
-    if rhoc_mean is None: #water vapor flux
-        return((1+1.61*q_mean)*(cov_wrhow+rhow_mean/Ts_mean*cov_wTs)) #with M_L/M_w = 1.61
-    else: #other trace gas flux
-        return(cov_wrhoc+1.61*rhoc_mean/rhow_mean*cov_wrhow+(1+1.61*q_mean)*rhoc_mean/Ts_mean*cov_wTs)
+def WPLcorrectionH2O(cov_rhoqw,cov_wTs,Ts_mean,rhoq_mean):
+    return((1+1.61*rhoq_mean/rhoAir())*(cov_rhoqw+rhoq_mean/Ts_mean*cov_wTs)) #with M_L/M_w = 1.61
+
+
+#' WPL correction for CO2 flux
+#'
+#'@description WPL correction: density correction for trace gas fluxes (i.e., converts volume- to mass-related quantity)
+#'@param Ts_mean temperature [K] (sonic temperature or corrected temperature)
+#'@param cov_wTs covariance cov(w,Ts) [m/s*K]
+#'@param rhoq_mean measured water vapor density [kg/m^3]
+#'@param cov_rhoqw covariance cov (w,rhow) [m/s*kg/m^3]
+#'
+#'@return WPL correction of respective flux
+#'@export
+#'
+def WPLcorrectionCO2(cov_rhocw,cov_rhoqw,cov_wTs,Ts_mean,rhoq_mean,rhoc_mean):
+    return(cov_rhocw+1.61*rhoc_mean/rhoAir()*cov_rhoqw+(1+1.61*rhoq_mean/rhoAir())*rhoc_mean/Ts_mean*cov_wTs) #with M_L/M_w = 1.61
+
 
 
 ### speed of sound to sonic temperature ###

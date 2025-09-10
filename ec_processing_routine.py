@@ -1,6 +1,17 @@
 import numpy as np
+import pandas as pd
 
-def ec_processing_rt(out):
+import os
+os.chdir("/home/lauramack/clickhouse-db-data-processing/Reddy4py")
+
+from auxillary import *
+from constants import *
+from diagnostics_meteorology import *
+from diagnostics_turbulence import *
+from ec_processing import *
+
+
+def ec_processing_rt(dat):
     """
     eddy-covariance post-processing of high-frequency data from Finse 
 
@@ -11,65 +22,65 @@ def ec_processing_rt(out):
     
     """
     #units
-    out[:,3]=sos2Ts(out[:,3])
-    #out[:,4]=ppt2rho(out[:,4],gas="H2O") #ppt
-    #out[:,5]=ppt2rho(out[:,5]/1000,gas="CO2") #ppm originally
-    out[:,4]=molarconcentration2density(out[:,4]/1000,gas="H2O") #mmol/m^3 -> kg/m^3
-    out[:,5]=molarconcentration2density(out[:,5]/1000,gas="CO2")
+    dat[:,3]=sos2Ts(dat[:,3])
+    #dat[:,4]=ppt2rho(dat[:,4],gas="H2O") #ppt
+    #dat[:,5]=ppt2rho(dat[:,5]/1000,gas="CO2") #ppm originally
+    dat[:,4]=molarconcentration2density(dat[:,4]/1000,gas="H2O") #mmol/m^3 -> kg/m^3
+    dat[:,5]=molarconcentration2density(dat[:,5]/1000,gas="CO2")
     #despiking + spike counting
-    nr_spikes_u=count_spikes(out[:,0],-15,15)
-    out[:,0]=despiking(out[:,0],-15,15)
-    nr_spikes_v=count_spikes(out[:,1],-15,15)
-    out[:,1]=despiking(out[:,1],-15,15)
-    nr_spikes_w=count_spikes(out[:,2],-5,5)
-    out[:,2]=despiking(out[:,2],-5,5)
-    nr_spikes_Ts=count_spikes(out[:,3],230,300)
-    out[:,3]=despiking(out[:,3],230,300)
-    nr_spikes_h2o=count_spikes(out[:,4],0,0.05)
-    out[:,4]=despiking(out[:,4],0,0.05)
-    nr_spikes_co2=count_spikes(out[:,5],0,0.005)
-    out[:,5]=despiking(out[:,5],0,0.005)
+    nr_spikes_u=count_spikes(dat[:,0],-15,15)
+    dat[:,0]=despiking(dat[:,0],-15,15)
+    nr_spikes_v=count_spikes(dat[:,1],-15,15)
+    dat[:,1]=despiking(dat[:,1],-15,15)
+    nr_spikes_w=count_spikes(dat[:,2],-5,5)
+    dat[:,2]=despiking(dat[:,2],-5,5)
+    nr_spikes_Ts=count_spikes(dat[:,3],230,300)
+    dat[:,3]=despiking(dat[:,3],230,300)
+    nr_spikes_h2o=count_spikes(dat[:,4],0,0.05)
+    dat[:,4]=despiking(dat[:,4],0,0.05)
+    nr_spikes_co2=count_spikes(dat[:,5],0,0.005)
+    dat[:,5]=despiking(dat[:,5],0,0.005)
     #amplitude resolution
-    ampl_res_u=get_amplitude_resolution(out[:,0])
-    ampl_res_v=get_amplitude_resolution(out[:,1])
-    ampl_res_w=get_amplitude_resolution(out[:,2])
-    ampl_res_Ts=get_amplitude_resolution(out[:,3])
-    ampl_res_h2o=get_amplitude_resolution(out[:,4])
-    ampl_res_co2=get_amplitude_resolution(out[:,5])
+    ampl_res_u=get_amplitude_resolution(dat[:,0])
+    ampl_res_v=get_amplitude_resolution(dat[:,1])
+    ampl_res_w=get_amplitude_resolution(dat[:,2])
+    ampl_res_Ts=get_amplitude_resolution(dat[:,3])
+    ampl_res_h2o=get_amplitude_resolution(dat[:,4])
+    ampl_res_co2=get_amplitude_resolution(dat[:,5])
     #wind direction + mean
-    wd_mean=calc_circular_mean(calc_windDirection(out[:,0],out[:,1]))
-    ws_mean=np.nanmean(calc_windspeed(out[:,0],out[:,1]))
+    wd_mean=calc_circular_mean(calc_windDirection(dat[:,0],dat[:,1]))
+    ws_mean=np.nanmean(calc_windspeed(dat[:,0],dat[:,1]))
     #double rotation
-    wind_rotated=rotate_double(out[:,0],out[:,1],out[:,2])
-    out[:,0],out[:,1],out[:,2]=wind_rotated[0:3]
+    wind_rotated=rotate_double(dat[:,0],dat[:,1],dat[:,2])
+    dat[:,0],dat[:,1],dat[:,2]=wind_rotated[0:3]
     dr_rot1=wind_rotated[3]
     dr_rot2=wind_rotated[4]
     #eddy stats use pandas quickly
-    out=pd.DataFrame(out)
-    #out=out.asfreq(freq='200L')
-    u_mean,v_mean,w_mean,Ts_mean,h2o_mean,co2_mean=out.apply(np.mean)
-    u_sd,v_sd,w_sd,Ts_sd,h2o_sd,co2_sd=out.apply(np.std)
+    dat=pd.DataFrame(dat)
+    #dat=dat.asfreq(freq='200L')
+    u_mean,v_mean,w_mean,Ts_mean,h2o_mean,co2_mean=dat.apply(np.mean)
+    u_sd,v_sd,w_sd,Ts_sd,h2o_sd,co2_sd=dat.apply(np.std)
     #back to numpy
-    out=np.array(out)
-    q_mean=np.nanmean(out[:,4])/1.225 #kg/kg
+    dat=np.array(dat)
+    q_mean=np.nanmean(dat[:,4])/1.225 #kg/kg
     T_mean=Ts2T(Ts_mean,q_mean)
-    cov_uw=np.cov(out[:,0],out[:,2])[0,1]
-    cov_uv=np.cov(out[:,0],out[:,1])[0,1]
-    cov_vw=np.cov(out[:,1],out[:,2])[0,1]
-    cov_wTs=np.cov(out[:,2],out[:,3])[0,1]
-    cov_h2ow=np.cov(out[:,2],out[:,4])[0,1]
-    cov_co2w=np.cov(out[:,2],out[:,5])[0,1]
+    cov_uw=np.cov(dat[:,0],dat[:,2])[0,1]
+    cov_uv=np.cov(dat[:,0],dat[:,1])[0,1]
+    cov_vw=np.cov(dat[:,1],dat[:,2])[0,1]
+    cov_wTs=np.cov(dat[:,2],dat[:,3])[0,1]
+    cov_h2ow=np.cov(dat[:,2],dat[:,4])[0,1]
+    cov_co2w=np.cov(dat[:,2],dat[:,5])[0,1]
     #snd correction
     cov_wT=SNDcorrection(Ts_mean,u_mean,v_mean,cov_uw,cov_vw,cov_wTs)
     #wpl correction
-    #cov_h2ow=WPLcorrection(Ts_mean,q_mean,cov_wTs,h2o_mean,cov_h2ow)
-    #cov_co2w=WPLcorrection(Ts_mean,q_mean,cov_wTs,h2o_mean,cov_h2ow,co2_mean,cov_co2w)
+    cov_h2ow=WPLcorrectionH2O(cov_h2ow,cov_wTs,Ts_mean,h2o_mean)
+    cov_co2w=WPLcorrectionCO2(cov_co2w,cov_h2ow,cov_wTs,Ts_mean,h2o_mean,co2_mean)
     #some more internal turbulence quantities
     sh=cov2sh(cov_wT)
     lh=cov2lh(cov_h2ow)
     et=lh2et(lh)
     br=calc_br(sh,lh)
-    cf=cov2cf(cov_co2w)
+    cf=cov2cf(cov_co2w)*1000 #g/(m^2*s)
     tke=calc_tke(u_sd,v_sd,w_sd)
     ustar=calc_ustar(cov_uw,cov_vw)
     z0=ustar2z0(ustar)
@@ -92,7 +103,7 @@ def ec_processing_rt(out):
     #flux footprint
     #anisotropy
     ### return
-    return(np.array([u_mean,v_mean,w_mean,Ts_mean,T_mean,h2o_mean,co2_mean,
+    row=pd.DataFrame([u_mean,v_mean,w_mean,Ts_mean,T_mean,h2o_mean,co2_mean,
                      u_sd,v_sd,w_sd,Ts_sd,h2o_sd,co2_sd,
                      cov_uw,cov_vw,cov_uv,wd_mean,ws_mean,
                      ustar,tke,dshear,z0,
@@ -101,4 +112,5 @@ def ec_processing_rt(out):
                      np.int32(dr_rot1),np.int32(dr_rot2),nr_spikes_u,nr_spikes_v,nr_spikes_w,
                      nr_spikes_Ts,nr_spikes_h2o,nr_spikes_co2,
                      ampl_res_u,ampl_res_v,ampl_res_w,ampl_res_Ts,ampl_res_h2o,ampl_res_co2,
-                     qf_most,qf_stationarity,qf_w,qf_all]))
+                     qf_most,qf_stationarity,qf_w,qf_all])
+    return(row)

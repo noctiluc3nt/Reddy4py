@@ -1,4 +1,15 @@
 import numpy as np
+import pandas as pd
+
+import os
+os.chdir("/home/lauramack/clickhouse-db-data-processing/Reddy4py")
+
+from auxillary import *
+from constants import *
+from diagnostics_meteorology import *
+from diagnostics_turbulence import *
+from ec_processing import *
+
 
 #' Saturation vapor pressure over water
 #'
@@ -180,7 +191,7 @@ def calc_csi(temp,lw_in,rh=None,e=None):
 #'calc_windDirection(3,3)
 #'
 def calc_windDirection(u,v):
-	return((180+180/np.pi*math.atan2(v,u))%360) #from ERA5 doc: https://confluence.ecmwf.int/pages/viewpage.action?pageId=133262398
+	return((180+180/np.pi*np.arctan2(v,u))%360) #from ERA5 doc: https://confluence.ecmwf.int/pages/viewpage.action?pageId=133262398
 
 
 #' Horizontal Wind Speed
