@@ -7,6 +7,7 @@ import os
 
 os.chdir("/home/lauramack/clickhouse-db-data-processing/Reddy4py")
 
+from .anisotropy import *
 from .auxillary import *
 from .constants import *
 from .diagnostics_meteorology import *

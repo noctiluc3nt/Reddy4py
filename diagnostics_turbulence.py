@@ -241,8 +241,7 @@ def calc_flux_intermittency(ts1, ts2=None, nsub=6000):
         else:
             cov_sub = np.nanmean(ts1[isub])  
         cov_subs[i] = cov_sub 
-    return np.std(cov_subs,ddof=1)/cov_complete  # Return the ratio of std dev to complete covariance
-
+    return np.std(cov_subs,ddof=1)/cov_complete
 
 ### hydrological measures ###
 #' Bowen ratio BR

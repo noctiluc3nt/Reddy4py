@@ -290,6 +290,46 @@ def flag_most(w_sd,ustar,zeta,thresholds_most=[0.3,0.8]):
     return(flag)
 
 
+#' Stationarity Flag
+#'
+#'@description Stationarity Flag according to Foken and Wichura, 1996 based on the assumption that the covariance of two variables (\code{var1} and \code{var2}, one usually representing vertical velocity) calculated for blocks (of length \code{nsub}) does not differ to much from the total covariance
+#'@param var1 variable 1 
+#'@param var2 variable 2 (same length as \code{var1}, usually either \code{var1} or \code{var2} represent vertical velocity)
+#'@param nsub number of elements used for subsampling (\code{nsub < length(var1)}) 
+#'@param thresholds_stationarity vector containing 2 elements to distinguish between flag=0 and flag=1, as well as flag=1 and flag=2, default: \code{c(0.3,1)}
+#'
+#'@return stationarity flags (0: in full agreement with the criterion ... 2: does not fulfill the criterion)
+#'@export
+#'
+#'@examples
+#'set.seed(5)
+#'ts1=rnorm(30)
+#'ts2=rnorm(30)
+#'flag_stationarity(ts1,ts2,nsub=6)
+#'
+def flag_stationarity(var1, var2, nsub=3000, thresholds_stationarity=(0.3,1)):
+    if len(var1) != len(var2):
+        raise ValueError("var1 and var2 have to be of equal length.")
+    if len(thresholds_stationarity) != 2:
+        raise ValueError("thresholds_stationarity has to be a vector of length 2.")
+    nint = len(var1)//nsub
+    if nint <= 1:
+        raise ValueError("nsub is chosen too large.")
+    rnfs = np.empty(nint)
+    cov_complete = np.cov(var1, var2, ddof=0, bias=True)[0,1]
+    for i in range(nint):
+        isub = slice(i * nsub, (i + 1) * nsub)
+        cov_sub = np.cov(var1[isub], var2[isub], ddof=0, bias=True)[0,1]
+        rnfs[i] = abs((cov_complete - cov_sub) / cov_complete)
+    rnf = np.nanmean(rnfs)
+    if rnf < thresholds_stationarity[0]:
+        flag = 0
+    elif rnf < thresholds_stationarity[1]:
+        flag = 1
+    else:
+        flag = 2
+    return flag
+
 
 ### fluxes (unit conversion) ###
 #' Converts cov(w,T) to sensible heat flux SH
