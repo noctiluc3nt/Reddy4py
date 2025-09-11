@@ -1,15 +1,19 @@
 import numpy as np
 import pandas as pd
-
 import os
-os.chdir("/home/lauramack/clickhouse-db-data-processing/Reddy4py")
 
-from anisotropy import *
-from auxillary import *
-from constants import *
-from diagnostics_meteorology import *
-from diagnostics_turbulence import *
-from ec_processing import *
+os.chdir("/home/lauramack/clickhouse-db-data-processing/")
+from Reddy4py import *
+
+#import os
+#os.chdir("/home/lauramack/clickhouse-db-data-processing/Reddy4py")
+
+#from anisotropy import *
+#from auxillary import *
+#from constants import *
+#from diagnostics_meteorology import *
+#from diagnostics_turbulence import *
+#from ec_processing import *
 
 
 def ec_processing_rt(dat,TIMESTAMP=""):
@@ -99,21 +103,28 @@ def ec_processing_rt(dat,TIMESTAMP=""):
     #mrd
     #flux footprint
     #anisotropy
-    aniso=calc_anisotropy(u_sd**2,cov_uv,cov_uw,v_sd**2,cov_vw,w_sd**2)
-    xb=aniso['xb']
-    yb=aniso['yb']
+    xb=0
+    yb=0
+    try:
+        aniso=calc_anisotropy(u_sd**2,cov_uv,cov_uw,v_sd**2,cov_vw,w_sd**2)
+        xb=aniso['xb']
+        yb=aniso['yb']
+    except:
+        print("An exception in anisotropy calculation occurred.")
     ### return
+    dr_rot1 = np.int32(-1) if np.isnan(dr_rot1) else np.int32(dr_rot1)
+    dr_rot2 = np.int32(-1) if np.isnan(dr_rot2) else np.int32(dr_rot2)
     row=pd.DataFrame([TIMESTAMP,u_mean,v_mean,w_mean,Ts_mean,T_mean,h2o_mean,co2_mean,
                      u_sd,v_sd,w_sd,Ts_sd,h2o_sd,co2_sd,
                      cov_uw,cov_vw,cov_uv,wd_mean,ws_mean,
                      ustar,tke,dshear,z0,
                      sh,lh,et,br,cf,
                      obukhov_length,zeta,xb,yb,flux_intermittency,
-                     np.int32(dr_rot1),np.int32(dr_rot2),nr_spikes_u,nr_spikes_v,nr_spikes_w,
+                     dr_rot1,dr_rot2,nr_spikes_u,nr_spikes_v,nr_spikes_w,
                      nr_spikes_Ts,nr_spikes_h2o,nr_spikes_co2,
                      ampl_res_u,ampl_res_v,ampl_res_w,ampl_res_Ts,ampl_res_h2o,ampl_res_co2,
                      qf_most,qf_stationarity,qf_w,qf_all]).T
-    row.columns=["TIMESTAMP","u_mean","v_mean","w_mean","Ts_mean","T_mean","h2o_mean","co2_mean",
+    row.columns=["time","u_mean","v_mean","w_mean","Ts_mean","T_mean","h2o_mean","co2_mean",
                      "u_sd","v_sd","w_sd","Ts_sd","h2o_sd","co2_sd",
                      "cov_uw","cov_vw","cov_uv","wd_mean","ws_mean",
                      "ustar","tke","dshear","z0",
