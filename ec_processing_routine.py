@@ -96,12 +96,12 @@ def ec_processing_rt(dat,TIMESTAMP=""):
     #quality flags
     qf_w=flag_w(w_mean)
     qf_most=flag_most(w_sd,ustar,zeta)
-    qf_stationarity=flag_stationarity(dat[:,2],dat[:,3]) #stationarity flag for w'Ts'
+    qf_stationarity=2
+    try:
+        qf_stationarity=flag_stationarity(dat[:,2],dat[:,3]) #stationarity flag for w'Ts'
+    except:
+        print("An error in stationary flux calculation occurred.")
     qf_all=max(qf_w,qf_most,qf_stationarity)
-    ### plots
-    #qa
-    #mrd
-    #flux footprint
     #anisotropy
     xb=0
     yb=0
