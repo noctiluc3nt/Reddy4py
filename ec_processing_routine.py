@@ -2,7 +2,7 @@ import numpy as np
 import pandas as pd
 import os
 
-os.chdir("/home/lauramack/clickhouse-db-data-processing/")
+os.chdir("/home/lauramack/flux-processing/")
 from Reddy4py import *
 
 #import os
@@ -16,18 +16,19 @@ from Reddy4py import *
 #from ec_processing import *
 
 
-def ec_processing_rt(dat,TIMESTAMP=""):
+def ec_processing_rt(dat,TIMESTAMP="",convert_sos2Ts=True):
     """
     eddy-covariance post-processing of high-frequency data from Finse 
 
-    @input numpy array with columns: u-v-w-Ts-h2o-co2 (high-frequency data from table finsefluxHFData)
-    @return post-processed, quality-controlled, averaged fluxes and co (for inserting back to table ch_finsefluxpostproc)
+    @input numpy array with columns: u-v-w-Ts-h2o-co2(-ch4) (high-frequency data from table {station}_HFData)
+    @return post-processed, quality-controlled, averaged fluxes and co (for inserting back to table ch_{station}postproc)
     
-    h2o, co2: used molar concentrations [mol/m^3] and converted them to density [kg/m^3] by multiplying with molar mass
+    h2o, co2, ch4: uses molar concentrations [mol/m^3] and converted them to density [kg/m^3] by multiplying with molar mass
     
     """
     #units
-    dat[:,3]=sos2Ts(dat[:,3])
+    if convert_sos2Ts:
+        dat[:,3]=sos2Ts(dat[:,3])
     #dat[:,4]=ppt2rho(dat[:,4],gas="H2O") #ppt
     #dat[:,5]=ppt2rho(dat[:,5]/1000,gas="CO2") #ppm originally
     dat[:,4]=molarconcentration2density(dat[:,4]/1000,gas="H2O") #mmol/m^3 -> kg/m^3
@@ -60,11 +61,25 @@ def ec_processing_rt(dat,TIMESTAMP=""):
     dat[:,0],dat[:,1],dat[:,2]=wind_rotated[0:3]
     dr_rot1=wind_rotated[3]
     dr_rot2=wind_rotated[4]
-    #eddy stats use pandas quickly
-    dat=pd.DataFrame(dat)
-    #dat=dat.asfreq(freq='200L')
-    u_mean,v_mean,w_mean,Ts_mean,h2o_mean,co2_mean=dat.apply(np.mean)
-    u_sd,v_sd,w_sd,Ts_sd,h2o_sd,co2_sd=dat.apply(np.std)
+    #if methane
+    do_methane=(dat.shape[1]>6)
+    if do_methane: 
+        dat[:,6]=molarconcentration2density(dat[:,6]/1000,gas="CH4")
+        nr_spikes_ch4=count_spikes(dat[:,6],0,3)
+        dat[:,6]=despiking(dat[:,6],0,3)
+        ampl_res_ch4=get_amplitude_resolution(dat[:,6])
+        cov_ch4w=np.cov(dat[:,2],dat[:,6])[0,1]
+        #eddy stats use pandas quickly
+        dat=pd.DataFrame(dat)
+        #dat=dat.asfreq(freq='200L')
+        u_mean,v_mean,w_mean,Ts_mean,h2o_mean,co2_mean,ch4_mean=dat.apply(np.mean)
+        u_sd,v_sd,w_sd,Ts_sd,h2o_sd,co2_sd,ch4_sd=dat.apply(np.std)
+    else:
+        #eddy stats use pandas quickly
+        dat=pd.DataFrame(dat)
+        #dat=dat.asfreq(freq='200L')
+        u_mean,v_mean,w_mean,Ts_mean,h2o_mean,co2_mean=dat.apply(np.mean)
+        u_sd,v_sd,w_sd,Ts_sd,h2o_sd,co2_sd=dat.apply(np.std)
     #back to numpy
     dat=np.array(dat)
     q_mean=np.nanmean(dat[:,4])/1.225 #kg/kg
@@ -133,5 +148,26 @@ def ec_processing_rt(dat,TIMESTAMP=""):
                      "dr_rot1","dr_rot2","nr_spikes_u","nr_spikes_v","nr_spikes_w",
                      "nr_spikes_Ts","nr_spikes_h2o","nr_spikes_co2",
                      "ampl_res_u","ampl_res_v","ampl_res_w","ampl_res_Ts","ampl_res_h2o","ampl_res_co2",
+                     "qf_most","qf_stationarity","qf_w","qf_all"]
+    if do_methane:
+        row=pd.DataFrame([TIMESTAMP,u_mean,v_mean,w_mean,Ts_mean,T_mean,h2o_mean,co2_mean,ch4_mean,
+                     u_sd,v_sd,w_sd,Ts_sd,h2o_sd,co2_sd,ch4_sd,
+                     cov_uw,cov_vw,cov_uv,wd_mean,ws_mean,
+                     ustar,tke,dshear,z0,
+                     sh,lh,et,br,cf,cov_ch4w,
+                     obukhov_length,zeta,xb,yb,flux_intermittency,
+                     dr_rot1,dr_rot2,nr_spikes_u,nr_spikes_v,nr_spikes_w,
+                     nr_spikes_Ts,nr_spikes_h2o,nr_spikes_co2,nr_spikes_ch4,
+                     ampl_res_u,ampl_res_v,ampl_res_w,ampl_res_Ts,ampl_res_h2o,ampl_res_co2,ampl_res_ch4,
+                     qf_most,qf_stationarity,qf_w,qf_all]).T
+        row.columns=["time","u_mean","v_mean","w_mean","Ts_mean","T_mean","h2o_mean","co2_mean","ch4_mean",
+                     "u_sd","v_sd","w_sd","Ts_sd","h2o_sd","co2_sd","ch4_sd",
+                     "cov_uw","cov_vw","cov_uv","wd_mean","ws_mean",
+                     "ustar","tke","dshear","z0",
+                     "SH","LH","ET","BR","CF","CH4F",
+                     "L","zeta","xb","yb","flux_intermittency",
+                     "dr_rot1","dr_rot2","nr_spikes_u","nr_spikes_v","nr_spikes_w",
+                     "nr_spikes_Ts","nr_spikes_h2o","nr_spikes_co2","nr_spikes_ch4",
+                     "ampl_res_u","ampl_res_v","ampl_res_w","ampl_res_Ts","ampl_res_h2o","ampl_res_co2","ampl_res_ch4",
                      "qf_most","qf_stationarity","qf_w","qf_all"]
     return(row)
