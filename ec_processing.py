@@ -44,7 +44,7 @@ from Reddy4py import *
 def despiking(ts,threshold_low,threshold_up):
     vec=np.where(ts<threshold_low,np.nan,ts)
     vec=np.where(ts>threshold_up,np.nan,ts)
-    return ts
+    return vec
 
 #' Count spikes
 #'
