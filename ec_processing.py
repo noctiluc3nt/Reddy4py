@@ -26,7 +26,7 @@ from Reddy4py import *
 #'
 #'@description Applies (up to) three despiking methods based on pre-defined thresholds
 #'@param ts timeseries that shall be despiked
-#'@param thresholds vector with two elements representing lower and upper bounds for despiking (pre-defined thresholds), \code{NA} means that the respective bound is not used
+#'@param thresholds vector with two elements representing lower and upper bounds for despiking (pre-defined thresholds)
 #'
 #'@return despiked timeseries
 #'@export
@@ -43,7 +43,7 @@ from Reddy4py import *
 #'
 def despiking(ts,threshold_low,threshold_up):
     vec=np.where(ts<threshold_low,np.nan,ts)
-    vec=np.where(ts>threshold_up,np.nan,ts)
+    vec=np.where(vec>threshold_up,np.nan,vec)
     return vec
 
 #' Count spikes
@@ -69,7 +69,7 @@ def count_spikes(ts,threshold_low,threshold_up):
 #'@return number of different values in time series
 #'
 def get_amplitude_resolution(ts):
-    return len(set(ts))
+    return len(np.unique(ts))
 
 #' Set everything smaller than machine epsilon to zero
 #'
@@ -86,7 +86,7 @@ def get_amplitude_resolution(ts):
 def smaller_than_machine_epsilon(vec):
     epsilon=np.finfo(float).eps
     #2.22044604925e-16
-    vec=np.where(vec<epsilon,0,vec)
+    vec=np.where(np.abs(vec)<epsilon,0.0,vec)
     return vec
 
 #' Double rotation
@@ -103,13 +103,16 @@ def smaller_than_machine_epsilon(vec):
 #'wind_rotated=rotate_double(4,3,1) #double rotation can be applied instantenously
 #'
 def rotate_double(u,v,w):
+    u=np.asarray(u,dtype=float)
+    v=np.asarray(v,dtype=float)
+    w=np.asarray(w,dtype=float)
     #horizontal
     theta=math.atan2(np.nanmean(v),np.nanmean(u))
     u1=u*np.cos(theta) + v*np.sin(theta)
     v1=-u*np.sin(theta) + v*np.cos(theta)
     w1=w
     #vertical
-    phi=math.atan2(np.mean(w1),np.mean(u1))
+    phi=math.atan2(np.nanmean(w1),np.nanmean(u1))
     u2=u1*np.cos(phi) + w1*np.sin(phi)
     v2=v1
     w2=-u1*np.sin(phi)+w1*np.cos(phi)
@@ -135,6 +138,8 @@ def ppt2rho(ppt,T_mean=288.15, pres = 101325, e = 0, gas="H2O"):
         return ppt/1000*M_CO2()/Vd
     elif gas == "CH4":
         return ppt/1000*M_CH4()/Vd
+    else:
+        raise ValueError("Gas must be one of 'H2O', 'CO2', 'CH4'.")
 
 #' Conversion of molar concentration to density
 #'
@@ -153,7 +158,7 @@ def molarconcentration2density(c, gas="H2O"):
     elif gas == "CH4":
         return(c*M_CH4())
     else:
-        print("You selected a gas which is not available for the conversion here.")
+        raise ValueError("You selected a gas which is not available for the conversion here.")
      
 #' Conversion of density to mixing ratio
 #'
@@ -178,7 +183,7 @@ def density2mixingratio(rho):
 #'@export
 #'
 def Ts2T(Ts,q):
-    return Ts*(1+Rd()/Rv()*q)
+    return Ts/(1+Rd()/Rv()*q)
 
 #' SND and cross-wind correction of sensible heat flux
 #'
@@ -264,7 +269,7 @@ def sos2Ts(sos):
 #'
 def flag_w(w,thresholds_w=[0.1,0.15]):
     if (len(thresholds_w)!=2):
-        print("thresholds_w has to be a vector of length 2.")
+        raise ValueError("thresholds_w has to be a vector of length 2.")
     w=abs(w)
     flag=np.where(w<thresholds_w[0],0,np.where(w<thresholds_w[1],1,2))
     return(flag)
@@ -287,7 +292,7 @@ def flag_w(w,thresholds_w=[0.1,0.15]):
 #'
 def flag_most(w_sd,ustar,zeta,thresholds_most=[0.3,0.8]):
     if (len(thresholds_most)!=2):
-        print("thresholds_most has to be a vector of length 2.")
+        raise ValueError("thresholds_most has to be a vector of length 2.")
     parameterized=1.3*(1-2*abs(zeta))**(1/3) #w_sd/ustar parametrized according to scaling function based on zeta
     itc=abs((w_sd/ustar-parameterized)/parameterized)
     flag=np.where(itc<thresholds_most[0],0,np.where(itc<thresholds_most[1],1,2))

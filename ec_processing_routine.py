@@ -8,12 +8,12 @@ from Reddy4py import *
 #import os
 #os.chdir("/home/lauramack/clickhouse-db-data-processing/Reddy4py")
 
-#from anisotropy import *
-#from auxillary import *
-#from constants import *
-#from diagnostics_meteorology import *
-#from diagnostics_turbulence import *
-#from ec_processing import *
+#from Reddy4py.anisotropy import *
+#from Reddy4py.auxillary import *
+#from Reddy4py.constants import *
+#from Reddy4py.diagnostics_meteorology import *
+#from Reddy4py.diagnostics_turbulence import *
+#from Reddy4py.ec_processing import *
 
 
 def ec_processing_rt(dat,TIMESTAMP="",convert_sos2Ts=True):

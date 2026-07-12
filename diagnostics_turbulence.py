@@ -232,7 +232,7 @@ def calc_flux_intermittency(ts1, ts2=None, nsub=6000):
     n = len(ts1)
     nint = n // nsub
     if nint <= 1:
-        print("nsub is chosen too large.")
+        raise ValueError("nsub is chosen too large.")
     cov_subs = np.full(nint, np.nan)
     if ts2 is not None:
         cov_complete = np.cov(ts1, ts2)[0,1]
@@ -333,8 +333,8 @@ def ustar2z0(ustar):
 #'calc_coriolis(45)
 #'
 def calc_coriolis(phi):
-	Omega=1/86400
-	return(2*Omega*math.sin(phi*np.pi/180))
+	Omega=2*np.pi/86400.0
+	return(2*Omega*np.sin(phi*np.pi/180))
 
 
 #' Ekman layer thickness
@@ -367,9 +367,9 @@ def calc_ekman_layer_depth(Km,f):
 #'@export
 #'
 def calc_N2(T1,T2,dz):
-	T0=(T1+T2)/2
+	T0=(T1+T2)/2.0
 	dT_dz=(T2-T1)/dz
-	return T0/g()*dT_dz
+	return g()/T0*dT_dz
 
 
 #' Calculates bulk Richardson number Ri
@@ -385,7 +385,7 @@ def calc_N2(T1,T2,dz):
 #'@export
 #'
 def calc_ri(T1,T2,U1,U2,dz):
-	T0=(T1+T2)/2
+	T0=(T1+T2)/2.0
 	dT_dz=(T2-T1)/dz
 	dUbar_dz=(U2-U1)/dz
 	ri=g()/T0*dT_dz/(dUbar_dz**2)
@@ -406,7 +406,7 @@ def calc_ri(T1,T2,U1,U2,dz):
 #'@export
 #'
 def calc_rif(cov_wT,cov_uw,U1,U2,dz,T_mean=None):
-	T0=np.where(T_mean is None,273.15,T_mean)
+	T0=273.15 if T_mean is None else T_mean
 	dUbar_dz=(U2-U1)/dz
 	rif=g()/T0*cov_wT/(cov_uw*dUbar_dz)
 	return rif

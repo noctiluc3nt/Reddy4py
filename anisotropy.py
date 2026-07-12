@@ -10,7 +10,6 @@ import warnings
 #'@param a22 R22 element of Reynolds stress tensor: \code{v_sd^2}   (scalar or vector)
 #'@param a23 R23 element of Reynolds stress tensor: \code{cov(v,w)} (scalar or vector)
 #'@param a33 R33 element of Reynolds stress tensor: \code{w_sd^2}   (scalar or vector)
-#'@param plot should the barycentric map be plotted? default \code{plot=FALSE}
 #'
 #'@return list containing \code{xb}, \code{yb}, \code{eta}, \code{xi}, all eigenvalues and eigenvectors (\code{eta}, \code{xi} are the coordinates of the Lumley triangle and \code{xb}, \code{yb} the coordinates of the barycentric map)
 #'@export
@@ -19,32 +18,33 @@ import warnings
 #'calc_anisotropy(1,0,0,1,0,1) #isotropic
 #'calc_anisotropy(1,0,1,1,0,1) #anisotropic
 #'
-def calc_anisotropy(a11, a12, a13, a22, a23, a33, plot=False):
+def calc_anisotropy(a11, a12, a13, a22, a23, a33):
     #if len(set(map(len, [a11, a12, a13, a22, a23, a33]))) > 1:
     #    warnings.warn("The given elements of the Reynolds stress tensor are not of equal length.")
-    n=1
+    n=1 #this version for scalar inputs only
     #unit matrix / Kronecker delta
     delta = np.eye(3)  
     #initialize
-    eta = np.zeros(n)
-    xi = np.zeros(n)
-    xb = np.zeros(n)
-    yb = np.zeros(n)
-    evals = np.empty((n, 3))
-    evecs = np.empty((n, 3, 3))
+    eta = np.full(n,np.nan)
+    xi = np.full(n,np.nan)
+    xb = np.full(n,np.nan)
+    yb = np.full(n,np.nan)
+    evals_ = np.array([np.nan, np.nan, np.nan])
+    evecs_ = np.full((3, 3), np.nan)
     #symmetry
     a21 = a12
     a31 = a13
     a32 = a23
     rey = np.array([[a11, a12, a13],
                     [a21, a22, a23],
-                    [a31, a32, a33]])
-    if not np.any(np.isnan(rey)):
+                    [a31, a32, a33]],dtype=float)
+    if np.any(np.isnan(rey)):
+        warnings.warn("Reynolds stress tensor contains NaNs -- anisotropy cannot be computed :(")
+    else:
         if np.sum(np.diag(rey)) != 0:
             B=rey/np.sum(np.diag(rey))-1/3*delta
             #diagonalize the anisotropy matrix (calculate the eigenvalues)
             evals_, evecs_ = np.linalg.eig(B) #invariant analysis
-            Bdiag=np.diag(evals_)
             evs_sort=np.sort(evals_)[::-1]
             eta=(1/3*(evs_sort[0]**2+evs_sort[0]*evs_sort[1]+evs_sort[1]**2))**(1/2)
             dummyX=evs_sort[0]*evs_sort[1]*(evs_sort[0]+evs_sort[1])
@@ -64,6 +64,6 @@ def calc_anisotropy(a11, a12, a13, a22, a23, a33, plot=False):
         "eigenvalues": evals_,
         "eigenvectors": evecs_
     }
-    if plot:
-        plot_barycentric_map(out['xb'], out['yb'])
+    #if plot:
+    #    plot_barycentric_map(out['xb'], out['yb'])
     return out

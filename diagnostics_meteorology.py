@@ -51,7 +51,7 @@ def calc_vpd(temp,rh):
     d=1.289036*10**-5
     e=-2.4780681*10**-9
     f=6.5459673
-    temp=temp*5/9 #K to deg R (Rankine scale)
+    temp=temp*9/5 #K to deg R (Rankine scale)
     es=np.exp(a/temp+b+c*temp+d*temp**2+e*temp**3+f*np.log(temp))
     return(es*(1-rh/100))
 
@@ -169,8 +169,8 @@ def ah2rh(ah,temp):
 #'calc_csi(273,230,70) #with relative humidity
 #'
 def calc_csi(temp,lw_in,rh=None,e=None):
-    if (None not in (rh,e)):
-        print("Either relative humidity rh or vapor pressure e have to be given.")
+    if (rh is None and e is None):
+        raise ValueError("Either relative humidity 'rh' or vapor pressure 'e' must be given.")
     if (rh is not None): #calculate vapor pressure
         es = calc_satvaporpressure(temp)
         e = rh * es/100

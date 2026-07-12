@@ -13,6 +13,7 @@ import numpy as np
 #'calc_circular_mean(wd)
 #'
 def calc_circular_mean(x,nan_rm=True):
+    x=np.asarray(x,dtype=float)
     x=x*np.pi/180
     if nan_rm==True:
         return((np.arctan2(np.nansum(np.sin(x)),np.nansum(np.cos(x)))*180/np.pi)%360)
