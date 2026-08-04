@@ -119,7 +119,7 @@ def calc_quadrant_analysis(
         ),
     }
     if plot:
-        plot_quadrant_analysis(xval, yval, do_normalization=False, **plot_kwargs)
+        plot_quadrant_analysis(xval,yval,**plot_kwargs)
         print(qa_out)
     return qa_out
 
@@ -168,6 +168,8 @@ def plot_quadrant_analysis(
     #scatter plot
     col = (0.6,0.6,0.6,0.1)
     plt.scatter(xval,yval,c=[col],s=10,**plot_kwargs)
+    plt.xlim(-4,4)
+    plt.ylim(-4,4)
     plt.axhline(0,linestyle="--",color="black",linewidth=2)
     plt.axvline(0,linestyle="--",color="black",linewidth=2)
     mask = ~np.isnan(xval) & ~np.isnan(yval)
