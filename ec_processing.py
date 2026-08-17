@@ -293,7 +293,7 @@ def flag_w(w,thresholds_w=[0.1,0.15]):
 def flag_most(w_sd,ustar,zeta,thresholds_most=[0.3,0.8]):
     if (len(thresholds_most)!=2):
         raise ValueError("thresholds_most has to be a vector of length 2.")
-    parameterized=1.3*(1-2*abs(zeta))**(1/3) #w_sd/ustar parametrized according to scaling function based on zeta
+    parameterized=1.3/(1+3*abs(zeta))**(1/3) #w_sd/ustar parametrized according to scaling function based on zeta
     itc=abs((w_sd/ustar-parameterized)/parameterized)
     flag=np.where(itc<thresholds_most[0],0,np.where(itc<thresholds_most[1],1,2))
     return(flag)
