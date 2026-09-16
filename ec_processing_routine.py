@@ -68,7 +68,8 @@ def ec_processing_rt(dat,TIMESTAMP="",convert_sos2Ts=True):
         nr_spikes_ch4=count_spikes(dat[:,6],0,3)
         dat[:,6]=despiking(dat[:,6],0,3)
         ampl_res_ch4=get_amplitude_resolution(dat[:,6])
-        cov_ch4w=np.cov(dat[:,2],dat[:,6])[0,1]
+        mask = ~np.isnan(dat[:,2]) & ~np.isnan(dat[:,6])
+        cov_ch4w=np.cov(dat[mask,2],dat[mask,6],bias=True)[0,1]
         #eddy stats use pandas quickly
         dat=pd.DataFrame(dat)
         #dat=dat.asfreq(freq='200L')
@@ -84,12 +85,18 @@ def ec_processing_rt(dat,TIMESTAMP="",convert_sos2Ts=True):
     dat=np.array(dat)
     q_mean=np.nanmean(dat[:,4])/1.225 #kg/kg
     T_mean=Ts2T(Ts_mean,q_mean)
-    cov_uw=np.cov(dat[:,0],dat[:,2])[0,1]
-    cov_uv=np.cov(dat[:,0],dat[:,1])[0,1]
-    cov_vw=np.cov(dat[:,1],dat[:,2])[0,1]
-    cov_wTs=np.cov(dat[:,2],dat[:,3])[0,1]
-    cov_h2ow=np.cov(dat[:,2],dat[:,4])[0,1]
-    cov_co2w=np.cov(dat[:,2],dat[:,5])[0,1]
+    mask = ~np.isnan(dat[:,2]) & ~np.isnan(dat[:,0])
+    cov_uw=np.cov(dat[mask,0],dat[mask,2],bias=True)[0,1]
+    mask = ~np.isnan(dat[:,0]) & ~np.isnan(dat[:,1])
+    cov_uv=np.cov(dat[mask,0],dat[mask,1],bias=True)[0,1]
+    mask = ~np.isnan(dat[:,2]) & ~np.isnan(dat[:,1])
+    cov_vw=np.cov(dat[mask,1],dat[mask,2],bias=True)[0,1]
+    mask = ~np.isnan(dat[:,2]) & ~np.isnan(dat[:,3])
+    cov_wTs=np.cov(dat[mask,2],dat[mask,3],bias=True)[0,1]
+    mask = ~np.isnan(dat[:,2]) & ~np.isnan(dat[:,4])
+    cov_h2ow=np.cov(dat[mask,2],dat[mask,4],bias=True)[0,1]
+    mask = ~np.isnan(dat[:,2]) & ~np.isnan(dat[:,5])
+    cov_co2w=np.cov(dat[mask,2],dat[mask,5],bias=True)[0,1]
     #snd correction
     cov_wT=SNDcorrection(Ts_mean,u_mean,v_mean,cov_uw,cov_vw,cov_wTs)
     #wpl correction
@@ -101,6 +108,7 @@ def ec_processing_rt(dat,TIMESTAMP="",convert_sos2Ts=True):
     et=lh2et(lh)
     br=calc_br(sh,lh)
     cf=cov2cf(cov_co2w)*1000 #g/(m^2*s)
+    print(cf)
     tke=calc_tke(u_sd,v_sd,w_sd)
     ustar=calc_ustar(cov_uw,cov_vw)
     z0=ustar2z0(ustar)
@@ -170,4 +178,5 @@ def ec_processing_rt(dat,TIMESTAMP="",convert_sos2Ts=True):
                      "nr_spikes_Ts","nr_spikes_h2o","nr_spikes_co2","nr_spikes_ch4",
                      "ampl_res_u","ampl_res_v","ampl_res_w","ampl_res_Ts","ampl_res_h2o","ampl_res_co2","ampl_res_ch4",
                      "qf_most","qf_stationarity","qf_w","qf_all"]
+    print(row)
     return(row)
