@@ -411,12 +411,15 @@ def calc_cov_pairwise_complete(x,y):
 #'@return a list containing the timeseries \code{var1} and \code{var2} after shifting to the maximum cross-correlation and the lag
 #'@export
 #'
-def shift2maxccf(var1,var2,maxlag=0,plot=False):
+def shift2maxccf(var1,var2,maxlag=120,plot=False):
     var1 = np.asarray(var1, dtype=float)
     var2 = np.asarray(var2, dtype=float)
+    if (len(var1) != len(var2)):
+        raise ValueError("The two timeseries have different lengths.")
     notna = np.isfinite(var1) & np.isfinite(var2)
     x = var1[notna]
     y = var2[notna]
+    n=len(var1)
     if len(x) < 2:
         raise ValueError("Need at least two paired non-missing observations.")
     x_centered = x - np.mean(x)
@@ -429,10 +432,13 @@ def shift2maxccf(var1,var2,maxlag=0,plot=False):
         ccf_values = np.full_like(ccf_values, np.nan, dtype=float)
     else:
         ccf_values = ccf_values / denom
-    maxcc = np.nanmax(ccf_values) #maximum positive cross-correlation  
-    max_indices = np.where(ccf_values == maxcc)[0] #take the first lag if multiple maxima exist
-    lag = int(lags[max_indices[0]])
-    print(lag)
+    #find max abs ccf
+    allowed = np.abs(lags) <= maxlag
+    ccf_allowed = ccf_values[allowed]
+    lags_allowed = lags[allowed]
+    max_index = np.nanargmax(np.abs(ccf_allowed))
+    maxcc = ccf_allowed[max_index]
+    lag = int(lags_allowed[max_index])
     #optional plot
     #if plot:
     #    import matplotlib.pyplot as plt
@@ -445,35 +451,31 @@ def shift2maxccf(var1,var2,maxlag=0,plot=False):
     #    plt.show()
     #    print(f"lag: {lag}; maximum cross-correlation: {maxcc}")
     #compare to maxlag
-    if abs(lag) > maxlag:
-        print(
-            "Note: the calculated lag is larger than the given maximum "
-            "lag for shifting the time series (maxlag)."
-        )
-        lag = int(maxlag)
-    else:
-        print(f"time lag for maximizing cross-correlation: {lag}")
+    print(
+        f"time lag for maximum absolute cross-correlation: "
+        f"{lag}; CCF = {maxcc:.4f}"
+    )
+    #if abs(lag) > maxlag:
+    #    print(
+    #       "Note: the calculated lag is larger than the given maximum "
+    #       "lag for shifting the time series (maxlag)."
+    #   )
+    #   lag = int(maxlag)
+    #else:
+    #    print(f"time lag for maximizing cross-correlation: {lag}")
     #shift timeseries
     if lag > 0:
         var1_shifted = np.concatenate([var1, np.full(lag, np.nan)])
-        var2_shifted = np.concatenate([
-            np.full(lag, np.nan),
-            var2[:n]
-        ])
+        var2_shifted = np.concatenate([np.full(lag, np.nan),var2])
     else:
         lag_abs = abs(lag)
-        var1_shifted = np.concatenate([
-            np.full(lag_abs, np.nan),
-            var1[:n]
-        ])
-        var2_shifted = np.concatenate([
-            var2,
-            np.full(lag_abs, np.nan)
-        ])
+        var1_shifted = np.concatenate([np.full(lag_abs, np.nan),var1[:n]])
+        var2_shifted = np.concatenate([var2,np.full(lag_abs, np.nan)])
     return {
         "var1_shifted": var1_shifted,
         "var2_shifted": var2_shifted,
-        "lag": lag
+        "lag": lag,
+        "maxlag": maxlag
     }
 
 
@@ -500,9 +502,9 @@ def calc_cov(x,y,maxlag=120):
 
 
 #test cross-correlation maximization
-#n = 1000
-#var1 = np.random.normal(0, 1, n)
-#var2 = np.roll(var1, 20) + np.random.normal(0, 0.5, n)
+n = 1000
+var1 = np.random.normal(0, 1, n)
+var2 = np.roll(var1, 20) + np.random.normal(0, 0.5, n)
 
-#result = shift2maxccf(var1, var2, maxlag=120, plot=True)
-#print(result["lag"])
+result = shift2maxccf(var1, var2, maxlag=120, plot=True)
+print(result["lag"])

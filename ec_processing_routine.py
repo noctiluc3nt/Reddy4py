@@ -1,6 +1,7 @@
 import numpy as np
 import pandas as pd
 import os
+from scipy import signal
 
 os.chdir("/home/lauramack/flux-processing/")
 from Reddy4py import *
@@ -26,6 +27,7 @@ def ec_processing_rt(dat,TIMESTAMP="",convert_sos2Ts=True):
     h2o, co2, ch4: uses molar concentrations [mol/m^3] and converted them to density [kg/m^3] by multiplying with molar mass
     
     """
+    dat = np.array(dat,dtype=float,copy=True)
     #units
     if convert_sos2Ts:
         dat[:,3]=sos2Ts(dat[:,3])
@@ -69,7 +71,8 @@ def ec_processing_rt(dat,TIMESTAMP="",convert_sos2Ts=True):
         dat[:,6]=despiking(dat[:,6],0,3)
         ampl_res_ch4=get_amplitude_resolution(dat[:,6])
         mask = ~np.isnan(dat[:,2]) & ~np.isnan(dat[:,6])
-        cov_ch4w=np.cov(dat[mask,2],dat[mask,6],bias=True)[0,1]
+        #cov_ch4w=np.cov(dat[mask,2],dat[mask,6],bias=True)[0,1]
+        cov_ch4w=calc_cov(dat[:,2],dat[:,6],maxlag=120)["cov_maximized"]
         #eddy stats use pandas quickly
         dat=pd.DataFrame(dat)
         #dat=dat.asfreq(freq='200L')
@@ -85,23 +88,31 @@ def ec_processing_rt(dat,TIMESTAMP="",convert_sos2Ts=True):
     dat=np.array(dat)
     q_mean=np.nanmean(dat[:,4])/1.225 #kg/kg
     T_mean=Ts2T(Ts_mean,q_mean)
-    mask = ~np.isnan(dat[:,2]) & ~np.isnan(dat[:,0])
-    cov_uw=np.cov(dat[mask,0],dat[mask,2],bias=True)[0,1]
-    mask = ~np.isnan(dat[:,0]) & ~np.isnan(dat[:,1])
-    cov_uv=np.cov(dat[mask,0],dat[mask,1],bias=True)[0,1]
-    mask = ~np.isnan(dat[:,2]) & ~np.isnan(dat[:,1])
-    cov_vw=np.cov(dat[mask,1],dat[mask,2],bias=True)[0,1]
-    mask = ~np.isnan(dat[:,2]) & ~np.isnan(dat[:,3])
-    cov_wTs=np.cov(dat[mask,2],dat[mask,3],bias=True)[0,1]
-    mask = ~np.isnan(dat[:,2]) & ~np.isnan(dat[:,4])
-    cov_h2ow=np.cov(dat[mask,2],dat[mask,4],bias=True)[0,1]
-    mask = ~np.isnan(dat[:,2]) & ~np.isnan(dat[:,5])
-    cov_co2w=np.cov(dat[mask,2],dat[mask,5],bias=True)[0,1]
+    #mask = ~np.isnan(dat[:,2]) & ~np.isnan(dat[:,0])
+    #cov_uw=np.cov(dat[mask,0],dat[mask,2],bias=True)[0,1]
+    #mask = ~np.isnan(dat[:,0]) & ~np.isnan(dat[:,1])
+    #cov_uv=np.cov(dat[mask,0],dat[mask,1],bias=True)[0,1]
+    #mask = ~np.isnan(dat[:,2]) & ~np.isnan(dat[:,1])
+    #cov_vw=np.cov(dat[mask,1],dat[mask,2],bias=True)[0,1]
+    #mask = ~np.isnan(dat[:,2]) & ~np.isnan(dat[:,3])
+    #cov_wTs=np.cov(dat[mask,2],dat[mask,3],bias=True)[0,1]
+    #mask = ~np.isnan(dat[:,2]) & ~np.isnan(dat[:,4])
+    #cov_h2ow=np.cov(dat[mask,2],dat[mask,4],bias=True)[0,1]
+    #mask = ~np.isnan(dat[:,2]) & ~np.isnan(dat[:,5])
+    #cov_co2w=np.cov(dat[mask,2],dat[mask,5],bias=True)[0,1]
+    #with maximize cross-correlation
+    cov_uw=calc_cov_pairwise_complete(dat[:,0],dat[:,2])
+    cov_uv=calc_cov_pairwise_complete(dat[:,0],dat[:,1])
+    cov_vw=calc_cov_pairwise_complete(dat[:,1],dat[:,2])
+    cov_wTs=calc_cov_pairwise_complete(dat[:,2],dat[:,3])
+    cov_h2ow=calc_cov(dat[:,2],dat[:,4],maxlag=120)["cov_maximized"]
+    cov_co2w=calc_cov(dat[:,2],dat[:,5],maxlag=120)["cov_maximized"]
     #snd correction
-    cov_wT=SNDcorrection(Ts_mean,u_mean,v_mean,cov_uw,cov_vw,cov_wTs)
+    #cov_wT=SNDcorrection(Ts_mean,u_mean,v_mean,cov_uw,cov_vw,cov_wTs)
+    cov_wT=cov_wTs
     #wpl correction
-    cov_h2ow=WPLcorrectionH2O(cov_h2ow,cov_wTs,Ts_mean,h2o_mean)
-    cov_co2w=WPLcorrectionCO2(cov_co2w,cov_h2ow,cov_wTs,Ts_mean,h2o_mean,co2_mean)
+    #cov_h2ow=WPLcorrectionH2O(cov_h2ow,cov_wTs,Ts_mean,h2o_mean)
+    #cov_co2w=WPLcorrectionCO2(cov_co2w,cov_h2ow,cov_wTs,Ts_mean,h2o_mean,co2_mean)
     #some more internal turbulence quantities
     sh=cov2sh(cov_wT)
     lh=cov2lh(cov_h2ow)
