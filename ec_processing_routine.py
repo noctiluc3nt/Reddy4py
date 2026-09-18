@@ -6,9 +6,6 @@ from scipy import signal
 os.chdir("/home/lauramack/flux-processing/")
 from Reddy4py import *
 
-#import os
-#os.chdir("/home/lauramack/clickhouse-db-data-processing/Reddy4py")
-
 #from Reddy4py.anisotropy import *
 #from Reddy4py.auxillary import *
 #from Reddy4py.constants import *

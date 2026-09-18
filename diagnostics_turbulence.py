@@ -4,7 +4,7 @@ import pandas as pd
 import math
 
 import os
-os.chdir("/home/lauramack/clickhouse-db-data-processing/")
+os.chdir("/home/lauramack/flux-processing/")
 from Reddy4py import *
 
 #import os

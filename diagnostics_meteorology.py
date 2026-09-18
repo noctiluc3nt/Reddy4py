@@ -2,7 +2,7 @@ import numpy as np
 import pandas as pd
 
 import os
-os.chdir("/home/lauramack/clickhouse-db-data-processing/")
+os.chdir("/home/lauramack/flux-processing/")
 from Reddy4py import *
 
 #import os
