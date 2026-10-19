@@ -2,6 +2,7 @@ import numpy as np
 import pandas as pd
 import os
 from scipy import signal
+import logging
 
 os.chdir("/home/lauramack/flux-processing/")
 from Reddy4py import *
@@ -14,7 +15,8 @@ from Reddy4py import *
 #from Reddy4py.ec_processing import *
 
 
-def ec_processing_rt(dat,TIMESTAMP="",convert_sos2Ts=True):
+def ec_processing_rt(dat,TIMESTAMP,convert_sos2Ts=True,
+                     measurement_height=4.4,do_log=True):
     """
     eddy-covariance post-processing of high-frequency data from Finse 
 
@@ -25,6 +27,8 @@ def ec_processing_rt(dat,TIMESTAMP="",convert_sos2Ts=True):
     
     """
     dat = np.array(dat,dtype=float,copy=True)
+    if dat.shape[1] not in (6,7):
+        raise ValueError("expected 6 columns (u, v, w, SOS/Ts, H2O, CO2) or 7 columns with CH4")
     #units
     if convert_sos2Ts:
         dat[:,3]=sos2Ts(dat[:,3])
@@ -73,14 +77,14 @@ def ec_processing_rt(dat,TIMESTAMP="",convert_sos2Ts=True):
         #eddy stats use pandas quickly
         dat=pd.DataFrame(dat)
         #dat=dat.asfreq(freq='200L')
-        u_mean,v_mean,w_mean,Ts_mean,h2o_mean,co2_mean,ch4_mean=dat.apply(np.mean)
-        u_sd,v_sd,w_sd,Ts_sd,h2o_sd,co2_sd,ch4_sd=dat.apply(np.std)
+        u_mean,v_mean,w_mean,Ts_mean,h2o_mean,co2_mean,ch4_mean=dat.apply(np.nanmean)
+        u_sd,v_sd,w_sd,Ts_sd,h2o_sd,co2_sd,ch4_sd=dat.apply(np.nanstd)
     else:
         #eddy stats use pandas quickly
         dat=pd.DataFrame(dat)
         #dat=dat.asfreq(freq='200L')
-        u_mean,v_mean,w_mean,Ts_mean,h2o_mean,co2_mean=dat.apply(np.mean)
-        u_sd,v_sd,w_sd,Ts_sd,h2o_sd,co2_sd=dat.apply(np.std)
+        u_mean,v_mean,w_mean,Ts_mean,h2o_mean,co2_mean=dat.apply(np.nanmean)
+        u_sd,v_sd,w_sd,Ts_sd,h2o_sd,co2_sd=dat.apply(np.nanstd)
     #back to numpy
     dat=np.array(dat)
     q_mean=np.nanmean(dat[:,4])/1.225 #kg/kg
@@ -116,13 +120,12 @@ def ec_processing_rt(dat,TIMESTAMP="",convert_sos2Ts=True):
     et=lh2et(lh)
     br=calc_br(sh,lh)
     cf=cov2cf(cov_co2w)*1000 #g/(m^2*s)
-    print(cf)
     tke=calc_tke(u_sd,v_sd,w_sd)
     ustar=calc_ustar(cov_uw,cov_vw)
     z0=ustar2z0(ustar)
     dshear=calc_dshear(cov_uw,cov_vw)
     obukhov_length=calc_L(ustar,T_mean,cov_wT)
-    zeta=calc_zeta(4.4,obukhov_length)
+    zeta=calc_zeta(measurement_height,obukhov_length)
     flux_intermittency=calc_flux_intermittency(dat[:,3]) #intermittency in temperature
     #quality flags
     qf_w=flag_w(w_mean)
@@ -131,7 +134,9 @@ def ec_processing_rt(dat,TIMESTAMP="",convert_sos2Ts=True):
     try:
         qf_stationarity=flag_stationarity(dat[:,2],dat[:,3]) #stationarity flag for w'Ts'
     except:
-        print("An error in stationary flux calculation occurred.")
+        print("An error in stationary flag calculation occurred.")
+        if do_log:
+            logging.exception("Stationarity flag calculation failed for %s", TIMESTAMP)
     qf_all=max(qf_w,qf_most,qf_stationarity)
     #anisotropy
     xb=0
@@ -141,7 +146,11 @@ def ec_processing_rt(dat,TIMESTAMP="",convert_sos2Ts=True):
         xb=aniso['xb']
         yb=aniso['yb']
     except:
-        print("An exception in anisotropy calculation occurred.")
+        print("An error in anisotropy calculation occurred.")
+        if do_log:
+            logging.exception("Anisotropy calculation failed for %s", TIMESTAMP)
+        xb=np.nan
+        yb=np.nan
     ### return
     dr_rot1 = np.int32(-1) if np.isnan(dr_rot1) else np.int32(dr_rot1)
     dr_rot2 = np.int32(-1) if np.isnan(dr_rot2) else np.int32(dr_rot2)
@@ -166,25 +175,12 @@ def ec_processing_rt(dat,TIMESTAMP="",convert_sos2Ts=True):
                      "ampl_res_u","ampl_res_v","ampl_res_w","ampl_res_Ts","ampl_res_h2o","ampl_res_co2",
                      "qf_most","qf_stationarity","qf_w","qf_all"]
     if do_methane:
-        row=pd.DataFrame([TIMESTAMP,u_mean,v_mean,w_mean,Ts_mean,T_mean,h2o_mean,co2_mean,ch4_mean,
-                     u_sd,v_sd,w_sd,Ts_sd,h2o_sd,co2_sd,ch4_sd,
-                     cov_uw,cov_vw,cov_uv,wd_mean,ws_mean,
-                     ustar,tke,dshear,z0,
-                     sh,lh,et,br,cf,cov_ch4w,
-                     obukhov_length,zeta,xb,yb,flux_intermittency,
-                     dr_rot1,dr_rot2,nr_spikes_u,nr_spikes_v,nr_spikes_w,
-                     nr_spikes_Ts,nr_spikes_h2o,nr_spikes_co2,nr_spikes_ch4,
-                     ampl_res_u,ampl_res_v,ampl_res_w,ampl_res_Ts,ampl_res_h2o,ampl_res_co2,ampl_res_ch4,
-                     qf_most,qf_stationarity,qf_w,qf_all]).T
-        row.columns=["time","u_mean","v_mean","w_mean","Ts_mean","T_mean","h2o_mean","co2_mean","ch4_mean",
-                     "u_sd","v_sd","w_sd","Ts_sd","h2o_sd","co2_sd","ch4_sd",
-                     "cov_uw","cov_vw","cov_uv","wd_mean","ws_mean",
-                     "ustar","tke","dshear","z0",
-                     "SH","LH","ET","BR","CF","CH4F",
-                     "L","zeta","xb","yb","flux_intermittency",
-                     "dr_rot1","dr_rot2","nr_spikes_u","nr_spikes_v","nr_spikes_w",
-                     "nr_spikes_Ts","nr_spikes_h2o","nr_spikes_co2","nr_spikes_ch4",
-                     "ampl_res_u","ampl_res_v","ampl_res_w","ampl_res_Ts","ampl_res_h2o","ampl_res_co2","ampl_res_ch4",
-                     "qf_most","qf_stationarity","qf_w","qf_all"]
+        row["ch4_mean"] = ch4_mean
+        row["ch4_sd"] = ch4_sd
+        row["CH4F"] = cov_ch4w
+        row["nr_spikes_ch4"] = nr_spikes_ch4
+        row["ampl_res_ch4"] = ampl_res_ch4
     print(row)
+    if do_log:
+        logging.debug("Output row:\n%s", row)
     return(row)

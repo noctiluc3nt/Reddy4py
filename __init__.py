@@ -5,7 +5,7 @@ import pandas as pd
 import math
 import os
 
-os.chdir("/home/lauramack/clickhouse-db-data-processing/Reddy4py")
+os.chdir("/home/lauramack/flux-processing/Reddy4py")
 
 from .anisotropy import *
 from .auxillary import *
